@@ -6,7 +6,7 @@ import {
     IWETH9__factory,
     NiftyKitMock,
     NiftyKitMock__factory,
-    WETH9,
+    WETH9, WETH9__factory,
 } from '../typechain';
 import { expect } from 'chai';
 import {matchEvents} from "./utils";
@@ -81,12 +81,15 @@ describe('GlobalKindMinter', function () {
                 minterSigner.address, safeSigner.address, wethHalf,
             );
 
-        const proxyEvents = matchEvents(
-            mintTx.events,
-            await ethers.getContractFactory('WETH9'),
-            beaconProxyFactoryFactory.filters.SquadMembershipProxyCreation(),
+        const wethTransferEvents = matchEvents(
+            mintTxRes.events,
+            weth,
+            weth.filters.Transfer(),
         );
-        expect(proxyEvents).to.have.length(1);
+        expect(wethTransferEvents).to.have.length(2);
+        expect(wethTransferEvents[1].args[0]).to.equal(minterSigner.address);
+        expect(wethTransferEvents[1].args[1]).to.equal(safeSigner.address);
+        expect(wethTransferEvents[1].args[2]).to.equal(wethHalf);
 
         expect(mintTx).changeEtherBalance(gkMinter, 0);
         expect(mintTx).changeEtherBalance(minterSigner, -value);
@@ -95,6 +98,7 @@ describe('GlobalKindMinter', function () {
         expect(mintTx).changeTokenBalance(weth, gkMinter, 0);
         expect(mintTx).changeTokenBalance(weth, treasurySigner, 0);
         expect(mintTx).changeTokenBalance(weth, minterSigner, 0);
+
     };
     describe('Tests paths', async () => {
         beforeEach(async function () {

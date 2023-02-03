@@ -26,6 +26,14 @@ export function matchEvents<TArgsArray extends any[], TArgsObject>(
 ): TypedEvent<TArgsArray, TArgsObject>[] {
   return events
     .filter((ev) => matchTopics(eventFilter.topics, ev.topics))
+      .filter((ev) => {
+        try{
+          contract.interface.parseLog(ev).args;
+          return true;
+        }catch (e) {
+          return false;
+        }
+      })
     .map((ev) => {
       const args = contract.interface.parseLog(ev).args;
       const result: TypedEvent<TArgsArray, TArgsObject> = {
