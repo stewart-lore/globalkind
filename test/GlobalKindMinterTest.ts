@@ -9,6 +9,7 @@ import {
     WETH9,
 } from '../typechain';
 import { expect } from 'chai';
+import {matchEvents} from "./utils";
 
 
 const ethPrice = ethers.utils.parseEther('0.01');
@@ -55,12 +56,15 @@ describe('GlobalKindMinter', function () {
         const minter = gkMinter.connect(minterSigner);
 
         const value = ethPrice.mul(quantity);
-        const mintTx = await minter.mint(quantity, { value: value });
+        const mintTxPromise = minter.mint(quantity, { value: value });
+        const mintTx = await mintTxPromise
+        const mintTxRes = await mintTx.wait()
+
         for (let i = 0; i < quantity; i++) {
             const tokenId = tokenIdStart + i;
             expect(await niftykit.ownerOf(tokenId)).to.equal(minterSigner.address);
 
-            expect(mintTx)
+             expect(mintTxRes)
                 .to.emit(NiftyKitMock__factory, 'Transfer')
                 .withArgs(
                     [ethers.constants.AddressZero, minterSigner.address],
@@ -70,18 +74,24 @@ describe('GlobalKindMinter', function () {
         }
 
         const ethHalf = value.div(2);
-        const weiHalf = value.sub(ethHalf);
-        expect(mintTx)
+        const wethHalf = value.sub(ethHalf);
+          expect(mintTx)
             .to.emit(IWETH9__factory, 'Transfer')
             .withArgs(
-                [gkMinter.address, minterSigner.address],
-                tokenIdStart,
-                tokenIdStart + quantity - 1,
+                minterSigner.address, safeSigner.address, wethHalf,
             );
+
+        const proxyEvents = matchEvents(
+            mintTx.events,
+            await ethers.getContractFactory('WETH9'),
+            beaconProxyFactoryFactory.filters.SquadMembershipProxyCreation(),
+        );
+        expect(proxyEvents).to.have.length(1);
+
         expect(mintTx).changeEtherBalance(gkMinter, 0);
         expect(mintTx).changeEtherBalance(minterSigner, -value);
         expect(mintTx).changeEtherBalance(treasurySigner, +ethHalf);
-        expect(mintTx).changeTokenBalance(weth, safeSigner, +weiHalf);
+        expect(mintTx).changeTokenBalance(weth, safeSigner, +wethHalf);
         expect(mintTx).changeTokenBalance(weth, gkMinter, 0);
         expect(mintTx).changeTokenBalance(weth, treasurySigner, 0);
         expect(mintTx).changeTokenBalance(weth, minterSigner, 0);
