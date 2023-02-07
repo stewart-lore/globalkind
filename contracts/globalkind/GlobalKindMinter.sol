@@ -69,7 +69,7 @@ contract GlobalKindMinter is Ownable, IGlobalKindMinter {
         uint256 price = niftykit.price();
 
         require(quantity > 0, "Quantity too low");
-        require(msg.value >= price * quantity, "Not enough funds sent");
+        require(msg.value == price * quantity, "Not enough funds sent");
         uint256 half = msg.value / 2;
         uint256 otherHalf = msg.value - half;
 
